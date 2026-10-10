@@ -26,7 +26,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -e '.[dev]'
       - name: Named defect and existing JS regression controls
-        run: python -m pytest -o addopts='' -q tests/test_issue363_js_catch.py tests/test_js_frontend.py tests/test_js_bindings.py tests/test_js_iterator_callbacks.py --junitxml=js-catch-receipts/results.xml
+        run: python -m pytest -o addopts='' -q tests/test_issue363_js_catch.py tests/test_js_frontend.py tests/test_js_bindings.py tests/test_js_iterator_callbacks.py tests/test_js_parse_linear.py tests/test_perf_js.py --junitxml=js-catch-receipts/results.xml
       - name: Record exact source identity
         if: always()
         shell: bash
