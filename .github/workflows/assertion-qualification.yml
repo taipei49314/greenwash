@@ -55,14 +55,14 @@ jobs:
               test "${#sdists[@]}" = 1
               mkdir -p receipts/artifacts
               cp "${wheels[0]}" "${sdists[0]}" receipts/artifacts/
-              python tools/release_inventory.py --distribution wheel --qualification receipts/wheel.json --artifact "${wheels[0]}" --artifact "${sdists[0]}" --output receipts/wheel-inventory.json
+              python tools/release_inventory.py --distribution wheel --qualification receipts/wheel.json --artifact "receipts/artifacts/$(basename "${wheels[0]}")" --artifact "receipts/artifacts/$(basename "${sdists[0]}")" --output receipts/wheel-inventory.json
               ;;
             pyz)
               python -m zipapp src -m "checkwash.zipapp_entry:run" -o "$RUNNER_TEMP/checkwash.pyz" -c
               python tools/qualify_assertions.py --distribution pyz --artifact "$RUNNER_TEMP/checkwash.pyz" --output receipts/pyz.json
               mkdir -p receipts/artifacts
               cp "$RUNNER_TEMP/checkwash.pyz" receipts/artifacts/
-              python tools/release_inventory.py --distribution pyz --qualification receipts/pyz.json --artifact "$RUNNER_TEMP/checkwash.pyz" --output receipts/pyz-inventory.json
+              python tools/release_inventory.py --distribution pyz --qualification receipts/pyz.json --artifact receipts/artifacts/checkwash.pyz --output receipts/pyz-inventory.json
               ;;
           esac
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
