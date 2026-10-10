@@ -249,3 +249,52 @@ def test_nested_inline_callback_scaling_remains_bounded():
     # Four times the input should not restore a quadratic descendant scan.
     # This generous ratio is a remote regression budget, not a throughput claim.
     assert large < max(small, 0.001) * 10, (small, large)
+
+
+@pytest.mark.parametrize("body", [
+    "try { " + ORACLE + " } catch (e) { function unused(): { value: number } { return { value: 1 }; } throw e; }",
+    "try { function unused(): { value: number } { return { value: 1 }; } " + ORACLE + " } catch {}",
+    "try { function unused(): { value: number } { try { " + ORACLE + " } catch {} return { value: 1 }; } } catch {}",
+    "try { " + ORACLE + " } catch (e) { rethrow: throw e; }",
+    "try { " + ORACLE + " } catch (e) { rethrow: { throw e; } }",
+    "try { done: { break done; " + ORACLE + " } } catch {}",
+])
+def test_unsupported_typed_declarations_and_labels_cannot_donate_or_hide_failure(body):
+    assert parse_javascript(source(body)).swallowing_handlers == ()
+
+
+def test_simple_typed_arrow_body_remains_a_function_boundary():
+    text = HEAD + 'it("x", (): number => { try { ' + ORACLE + " } catch {} return 1; });"
+    assert len(parse_javascript(text.encode()).swallowing_handlers) == 1
+
+
+@pytest.mark.parametrize("oracle", [
+    "order.paid.should.be.true;",
+    "e.message.should.exist;",
+    "(e.code).should.equal('ERR');",
+    "errors[0].should.equal(e);",
+    "new Date(0).getTime().should.equal(0);",
+])
+def test_represented_should_getters_work_in_guard_and_catch(oracle):
+    imports = 'import { should } from "chai"; should();\n'
+    guarded = imports.encode() + source("try { " + oracle + " } catch {}")
+    caught = imports.encode() + source("try { " + ORACLE + " } catch (e) { " + oracle + " }")
+    assert len(parse_javascript(guarded).swallowing_handlers) == 1
+    assert parse_javascript(caught).swallowing_handlers == ()
+
+
+@pytest.mark.parametrize("oracle", [
+    "result.should.eventually.equal(1);",
+    "(result).should.eventually.equal(1);",
+    "results[0].should.eventually.equal(1);",
+])
+def test_should_promise_chain_does_not_supply_a_synchronous_oracle(oracle):
+    imports = 'import { should } from "chai"; should();\n'
+    assert parse_javascript(imports.encode() + source("try { " + oracle + " } catch {}")).swallowing_handlers == ()
+
+
+def test_parent_callback_registration_is_a_named_cross_function_residual():
+    # The frontend records inline callback obligations lexically. This channel
+    # reads each owning body but does not prove a parent invokes that callback.
+    body = "return; rows.forEach(() => { try { " + ORACLE + " } catch {} });"
+    assert len(parse_javascript(source(body)).swallowing_handlers) == 1

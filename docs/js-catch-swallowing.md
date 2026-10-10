@@ -18,12 +18,20 @@ resolved API and actual call chain, including Node, AVA and tap async methods.
 Operands and literal strings containing `.resolves` or `.rejects` do not
 change that classification. Cross-function propagation, awaited expressions,
 unknown conditional control flow, loop/switch/with structure, nested try
-effects, class evaluation and `finally` are outside scope. Literal true/false branches and
+effects, class evaluation, labeled statements, typed function declaration
+headers and `finally` are outside scope. Literal true/false branches and
 direct terminal statements are read from the owning function body so a
-demonstrably dead try supplies no evidence. Traversal stops at 32 structural
+try proved dead within that owning body supplies no evidence. Parent
+callback registration/invocation reachability is not propagated: inline
+callback obligations remain lexical, as in the existing frontend. Traversal stops at 32 structural
 levels and supplies no claim for deeper shapes. An unused nested function cannot donate its
 throw or assertion as catch safety. Supported assertion recognition retains
 the existing import and lexical-shadow rules.
+
+Represented Chai should getters use their actual chain anchor, including
+property, parenthesized and indexed subjects. An assertion shape whose
+completion cannot be classified makes its handler unsupported; it is never
+silently removed from catch safety while claiming the catch is supported.
 
 Assertion and unsupported-operator positions are indexed per function owner;
 outer callback statements do not rescan descendant function tokens. Deep

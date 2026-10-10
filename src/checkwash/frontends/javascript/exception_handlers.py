@@ -57,12 +57,18 @@ class HandlerReader:
             if scope in boundaries and closing is not None:
                 self.roots.append((opening + 1, closing, scope))
         self.oracles: dict[int, list[int]] = {}
+        self.unclassified: dict[int, list[int]] = {}
         for assertion in assertions:
             index = bisect_left(bindings.token_starts, assertion.span[0])
-            if (index < len(self.tokens) and self.tokens[index][1] == assertion.span[0]
-                    and self.synchronous(index, assertion.span[1])):
-                self.oracles.setdefault(self.owner(index), []).append(index)
+            if index < len(self.tokens) and self.tokens[index][1] == assertion.span[0]:
+                synchronous = self.synchronous(index, assertion.span[1])
+                if synchronous is None:
+                    self.unclassified.setdefault(self.owner(index), []).append(index)
+                elif synchronous:
+                    self.oracles.setdefault(self.owner(index), []).append(index)
         for indices in self.oracles.values():
+            indices.sort()
+        for indices in self.unclassified.values():
             indices.sort()
         # Index only each owner's tokens. Outer callback statements never
         # scan all descendant bodies again; arguments are not method chains.
@@ -90,21 +96,7 @@ class HandlerReader:
                 return name, index + 3
         return None
 
-    def synchronous(self, first: int, end_position: int) -> bool:
-        """Classify the resolved API and its chain, never its argument text."""
-        path = [self.token(first)]
-        cursor = first + 1
-        while (step := self.member(cursor)) is not None:
-            name, cursor = step
-            path.append(name)
-        if self.token(cursor) != "(" or cursor not in self.pairs:
-            return False
-        value = self.bindings.callee(".".join(path), self.tokens[first][1])
-        if value.method in _PROMISE_METHODS.get(value.kind, set()):
-            return False
-        if value.kind == "chai_should_method" and value.method in _PROMISE_CHAIN:
-            return False
-        cursor = self.pairs[cursor] + 1
+    def chain_synchronous(self, cursor: int, end_position: int) -> bool:
         while cursor < len(self.tokens) and self.tokens[cursor][1] < end_position:
             step = self.member(cursor)
             if step is None:
@@ -118,6 +110,37 @@ class HandlerReader:
                     return False
                 cursor = closing + 1
         return True
+
+    def synchronous(self, first: int, end_position: int) -> bool | None:
+        """Classify the resolved API and its chain, never its argument text."""
+        # Represented should getters can have indexed, parenthesized, literal
+        # or new subjects and property matchers with no call at all. Find the
+        # chain anchor outside balanced subject/argument expressions.
+        cursor = first
+        while cursor < len(self.tokens) and self.tokens[cursor][1] < end_position:
+            if (self.token(cursor) == "should" and self.token(cursor - 1) in {".", "?."}
+                    and self.member(cursor + 1) is not None):
+                return self.chain_synchronous(cursor + 1, end_position)
+            if self.token(cursor) in {"(", "[", "{"} and cursor in self.pairs:
+                cursor = self.pairs[cursor] + 1
+            else:
+                cursor += 1
+        path = [self.token(first)]
+        cursor = first + 1
+        while (step := self.member(cursor)) is not None:
+            name, cursor = step
+            path.append(name)
+        if self.token(cursor) != "(" or cursor not in self.pairs:
+            return None
+        value = self.bindings.callee(".".join(path), self.tokens[first][1])
+        if value.method in _PROMISE_METHODS.get(value.kind, set()):
+            return False
+        if (value.kind == "chai_should_method" and value.method in _PROMISE_CHAIN
+                or self.bindings.callee(path[0], self.tokens[first][1]).kind == "chai_should"
+                and any(name in _PROMISE_CHAIN for name in path[1:])):
+            return False
+        cursor = self.pairs[cursor] + 1
+        return self.chain_synchronous(cursor, end_position)
 
     @staticmethod
     def contains(indices: list[int], first: int, last: int) -> bool:
@@ -150,7 +173,13 @@ class HandlerReader:
                 closing = self.pairs.get(cursor)
                 return closing + 1 if closing is not None and closing < last else last
             if self.token(cursor) in {"(", "["} and cursor in self.pairs:
-                cursor = self.pairs[cursor] + 1
+                closing = self.pairs[cursor]
+                if self.token(cursor) == "(" and self.token(closing + 1) == ":":
+                    # The binder's first-brace rule cannot distinguish a TS
+                    # object return type from its body. Stop the entire flow;
+                    # the unused body must never become parent-owned effects.
+                    return last
+                cursor = closing + 1
             else:
                 cursor += 1
         return last
@@ -197,6 +226,8 @@ class HandlerReader:
         if depth >= _MAX_DEPTH:
             return Effects(supported=False), last
         keyword = self.token(first)
+        if _NAME.fullmatch(keyword) and self.token(first + 1) == ":":
+            return Effects(supported=False), last
         if keyword == "{":
             closing = self.pairs.get(first)
             if closing is None or closing >= last:
@@ -228,7 +259,7 @@ class HandlerReader:
             # Class evaluation can execute static blocks/initializers. A TS
             # return-type brace is not a proved function declaration body.
             opening = self.pairs.get(end - 1)
-            supported = (keyword != "class" and opening is not None
+            supported = (keyword != "class" and end < last and opening is not None
                          and self.bindings.body_scopes.get(opening) in self.boundaries)
             return Effects(supported=supported), end
         if keyword == "try" and collect:
@@ -251,7 +282,8 @@ class HandlerReader:
         end = self.statement_end(first, last)
         oracle = self.contains(self.oracles.get(owner, []), first, end)
         optional = self.contains(self.optional.get(owner, []), first, end)
-        return Effects(oracle, keyword == "throw", not optional,
+        unknown = self.contains(self.unclassified.get(owner, []), first, end)
+        return Effects(oracle, keyword == "throw", not optional and not unknown,
                        keyword in {"throw", "return", "break", "continue"}), end
 
     def flow(self, first: int, last: int, owner: int, depth: int = 0,
