@@ -1,6 +1,30 @@
 # STATE — read this first when taking over
 
-Updated: 2026-10-08 (the 2026-10-05 scope: two of its 22 issues stay open, #196 on #351's ruling and #212 until the release; the rest waits on rulings; then stop)
+Updated: 2026-10-11 (v0.7.0 preparation draft; publication remains separately authorized)
+
+## 2026-10-11: v0.7.0 preparation, unpublished
+
+The approved preparation plan includes main through `35e74dc`, #357/PR #362,
+Git input PR #365 and the bounded #363 catch fix in draft PR #368. The
+version row and installation references on this branch propose v0.7.0;
+the published release remains v0.6.0. The recommended Action advances to
+the published v0.6.0 pin under the existing one-release lag.
+
+At #363 head `15a7fd9`, remote targeted run 38088926255, attempt 1,
+reports 250 tests with no failures/errors/skips, matching source and artifact
+hash and an empty working-tree diff. Ubuntu 3.13 full run 38088926268 reports
+17,288 tests: 17,285 pass, with stale test-count prose, stale failure-ledger
+prose and expected pinned-tag parity failing. This branch updates the two
+prose checks using that remote collection count and the remotely generated
+ledger. These receipts do not qualify the later preparation head.
+
+Final-source CI, delivered artifacts, fixed 4,271-ID Python and 1,800-ID
+JS/TS nonblind replays and necessary maintainer decisions remain required.
+The [candidate guide](docs/releases/v0.7.0-public-launch.md) and
+[known issues](docs/KNOWN-ISSUES-v0.7.0.md) preserve those boundaries.
+No candidate is merged to main, no v0.7.0 tag exists and nothing is published
+by this preparation. The protected materializer and original T-528 ownership
+are unchanged. Readiness is not claimed.
 
 ## 2026-10-08: the last approvals land
 
@@ -2463,7 +2487,7 @@ how the measurements moved; their original dates and values remain history.
 
 | authoritative number | value |
 |---|---|
-| version | v0.6.0 |
+| version | v0.7.0 |
 | detectors | 22 |
 | human-commit block rate | 46/1800 = 2.56% |
 | adjudicated false positive | 31/1800 = 1.72% |

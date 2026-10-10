@@ -46,9 +46,9 @@ Validation is pending when this patch is first published. Read the exact-head
 remote receipts before making a success claim. This is a new source candidate,
 not approval or replacement of b6e6f3a or the 8c70efb reference. No historical
 cost, first measurement, freeze, release or tag is performed here. The source
-limits in GitSnapshot are retained: selected regular source files 1 MiB,
-selected total 64 MB, inventory 200,000 paths, batch 256 OIDs. Commit objects
-used to establish parents have a 1 MB limit. New complete
+limits in GitSnapshot are retained: selected regular source files 1,000,000 bytes,
+selected total 64,000,000 bytes, inventory 200,000 paths, batch 256 OIDs. Commit objects
+used to establish parents have a 1,000,000-byte limit. New complete
 inventory and search response bounds reject oversize data, never truncate.
 Refusals must be accounted for in any future measurement with the original
 denominator. Old reference input-failure behavior remains a separate
